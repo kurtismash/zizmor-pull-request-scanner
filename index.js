@@ -6,13 +6,14 @@ import { getChangedFileMap, filterAnnotationsToChangedLines, updateCheckRun } fr
  *
  * @param {import('probot').Probot} app
  * @param {object} [deps] — injectable dependencies (used in tests)
- * @param {Function} [deps.runZizmor] — async (repository, sha, token, log) => SARIF object
+ * @param {Function} [deps.runZizmor] — async (repo, sha, token, log) => github output string
  */
 export default (app, { runZizmor = defaultRunZizmor } = {}) => {
   app.on(["pull_request.opened", "pull_request.synchronize"], async (context) => {
     const { pull_request } = context.payload;
     const sha = pull_request.head.sha;
     const prNumber = pull_request.number;
+    const repo = `${context.repo().owner}/${context.repo().repo}`;
 
     // Create the check run immediately so the PR shows "in progress"
     const {
@@ -49,7 +50,7 @@ export default (app, { runZizmor = defaultRunZizmor } = {}) => {
 
     try {
       const { token } = await context.octokit.auth({ type: "installation" });
-      const output = await runZizmor(`${context.repo().owner}/${context.repo().repo}`, sha, token, app.log);
+      const output = await runZizmor(repo, sha, token, app.log);
       const annotations = githubOutputToAnnotations(output);
 
       // Only report findings on lines changed in this PR
@@ -58,8 +59,7 @@ export default (app, { runZizmor = defaultRunZizmor } = {}) => {
       const auditOnly = process.env.AUDIT_ONLY === "true";
       const hasFindings = reportedAnnotations.length > 0;
       const conclusion = hasFindings ? (auditOnly ? "neutral" : "action_required") : "success";
-      const title =
-        reportedAnnotations.length > 0 ? `zizmor found ${reportedAnnotations.length} finding(s)` : "No findings";
+      const title = hasFindings ? `zizmor found ${reportedAnnotations.length} finding(s)` : "No findings";
       const summary = buildSummary(reportedAnnotations);
 
       const annotate = process.env.ANNOTATE !== "false";

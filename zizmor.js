@@ -26,7 +26,7 @@ export async function runZizmor(repo, headSha, token, log) {
   return stdout ?? "";
 }
 
-export const githubOutputToAnnotations = (output) => {
+export function githubOutputToAnnotations(output) {
   const annotations = [];
   const pattern = /^::(error|warning|notice)\s+(.*?)::(.*)/;
 
@@ -43,21 +43,22 @@ export const githubOutputToAnnotations = (output) => {
     );
 
     const startLine = parseInt(props.line ?? "1", 10);
+    const cleanMessage = message.replace(/^[^:]+:\d+:\s*/, "");
 
     annotations.push({
       path: props.file ?? "",
       start_line: startLine,
       end_line: parseInt(props.endLine ?? String(startLine), 10),
       annotation_level: level === "error" ? "failure" : level,
-      message: `${message.replace(/^[^:]+:\d+:\s*/, "")}\n\nSee https://docs.zizmor.sh/audits/${props.title} for more information.`,
+      message: `${cleanMessage}\n\nSee https://docs.zizmor.sh/audits/${props.title} for more information.`,
       title: props.title ?? "",
     });
   }
 
   return annotations;
-};
+}
 
-export const buildSummary = (annotations) => {
+export function buildSummary(annotations) {
   if (annotations.length === 0) {
     return "zizmor 🌈 found no issues in your GitHub Actions workflows.";
   }
