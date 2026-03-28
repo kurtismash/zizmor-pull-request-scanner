@@ -10,10 +10,14 @@ export async function runZizmor(repo, headSha, token, log) {
 
   let stdout;
   try {
-    ({ stdout } = await execFileAsync("zizmor", ["--format", "github", "--gh-token", token, target], {
-      timeout: 180_000,
-      maxBuffer: 10 * 1024 * 1024,
-    }));
+    ({ stdout } = await execFileAsync(
+      "./zizmor",
+      ["--cache-dir", "/tmp/zizmor", "--format", "github", "--gh-token", token, target],
+      {
+        timeout: 180_000,
+        maxBuffer: 10 * 1024 * 1024,
+      },
+    ));
   } catch (err) {
     // zizmor exits non-zero when findings are present but still writes output
     if (err.stdout) {
@@ -72,4 +76,4 @@ export function buildSummary(annotations) {
   if (counts.notice) parts.push(`${counts.notice} notice(s)`);
 
   return `zizmor 🌈 found ${parts.join(", ")} in your GitHub Actions workflows.\n\nSee the annotations for details.`;
-};
+}

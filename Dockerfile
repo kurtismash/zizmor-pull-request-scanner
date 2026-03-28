@@ -1,4 +1,4 @@
-FROM node:20-slim
+FROM node:24-slim
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends python3 python3-pip && \
@@ -10,5 +10,5 @@ COPY package.json package-lock.json ./
 RUN npm ci --production
 RUN npm cache clean --force
 ENV NODE_ENV="production"
-COPY . .
+COPY src/ src/
 CMD [ "npm", "start" ]

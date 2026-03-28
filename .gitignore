@@ -5,3 +5,7 @@ npm-debug.log
 .env
 coverage
 lib
+build/
+build.zip
+.terraform/
+**tfstate**

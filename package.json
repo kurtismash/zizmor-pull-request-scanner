@@ -1,18 +1,18 @@
 {
-  "name": "zizmor-status-check-app",
+  "name": "zizmor-pull-request-scanner",
   "version": "1.0.0",
   "private": true,
-  "description": "A wrapper to run zizmor as status checks within a pull request.",
-  "author": "The National Archives, UK",
-  "license": "ISC",
-  "homepage": "https://github.com//",
+  "description": "Run zizmor as a GitHub App to scan diffs within Pull Requests.",
+  "author": "Kurtis Mash",
+  "license": "MIT",
+  "homepage": "https://github.com/kurtismash/zizmor-pull-request-scanner",
   "keywords": [
     "probot",
     "github",
     "probot-app"
   ],
   "scripts": {
-    "start": "probot run ./index.js",
+    "start": "probot run ./src/index.js",
     "test": "node --test"
   },
   "dependencies": {

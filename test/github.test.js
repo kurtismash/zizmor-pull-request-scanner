@@ -4,8 +4,8 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-import { githubOutputToAnnotations } from "../zizmor.js";
-import { getDiffLines, filterAnnotationsToChangedLines } from "../github.js";
+import { githubOutputToAnnotations } from "../src/zizmor.js";
+import { getDiffLines, filterAnnotationsToChangedLines } from "../src/github.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
