@@ -1,0 +1,70 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/cos02/schemas/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "zizmor",
+          "version": "1.0.0",
+          "rules": [
+            {
+              "id": "artipacked",
+              "shortDescription": {
+                "text": "Credential persistence through artifacts"
+              }
+            },
+            {
+              "id": "known-vulnerable-actions",
+              "shortDescription": {
+                "text": "Use of a known-vulnerable action"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "artipacked",
+          "level": "warning",
+          "message": {
+            "text": "actions/checkout with persist-credentials enabled"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".github/workflows/ci.yml"
+                },
+                "region": {
+                  "startLine": 15,
+                  "endLine": 15
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "known-vulnerable-actions",
+          "level": "error",
+          "message": {
+            "text": "ci.yml uses a known-vulnerable action (actions/checkout@v1)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".github/workflows/ci.yml"
+                },
+                "region": {
+                  "startLine": 14,
+                  "endLine": 14
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

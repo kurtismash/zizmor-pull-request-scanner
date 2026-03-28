@@ -1,0 +1,2 @@
+::warning file=.github/workflows/ci.yml,line=15,endLine=15,title=artipacked::ci.yml:15: actions/checkout with persist-credentials enabled
+::error file=.github/workflows/ci.yml,line=14,endLine=14,title=known-vulnerable-actions::ci.yml:14: ci.yml uses a known-vulnerable action (actions/checkout@v1)
