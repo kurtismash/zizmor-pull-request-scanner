@@ -116,14 +116,6 @@ describe("zizmor status check app", () => {
         assert.strictEqual(body.output.annotations.length, 2);
         return true;
       })
-      .reply(200)
-
-      // create PR review with inline comments
-      .post("/repos/hiimbex/testing-things/pulls/121/reviews", (body) => {
-        assert.strictEqual(body.event, "COMMENT");
-        assert.ok(body.comments.length > 0);
-        return true;
-      })
       .reply(200);
 
     await probot.receive({ name: "pull_request", payload: pullRequestPayload });
@@ -229,10 +221,6 @@ describe("zizmor status check app", () => {
           assert.strictEqual(body.output.annotations, undefined);
           return true;
         })
-        .reply(200)
-
-        // PR comments still posted by default
-        .post("/repos/hiimbex/testing-things/pulls/121/reviews")
         .reply(200);
 
       await probot.receive({ name: "pull_request", payload: pullRequestPayload });
@@ -242,51 +230,6 @@ describe("zizmor status check app", () => {
         delete process.env.ANNOTATE;
       } else {
         process.env.ANNOTATE = originalEnv;
-      }
-    }
-  });
-
-  test("skips PR comments when COMMENT_ON_PR=false", async () => {
-    const originalEnv = process.env.COMMENT_ON_PR;
-    process.env.COMMENT_ON_PR = "false";
-
-    try {
-      const mockRunZizmor = async () => sampleOutput;
-      probot.load((app) => myProbotApp(app, { runZizmor: mockRunZizmor }));
-
-      const mock = nock("https://api.github.com")
-        .post("/app/installations/2/access_tokens")
-        .reply(200, { token: "test", permissions: { checks: "write" } })
-
-        .get("/repos/hiimbex/testing-things/pulls/121/files?per_page=100")
-        .reply(200, [
-          {
-            filename: ".github/workflows/ci.yml",
-            status: "modified",
-            patch:
-              "@@ -12,6 +12,8 @@\n context\n context\n+    uses: actions/checkout@v1\n+    with:\n context\n context",
-          },
-        ])
-
-        .post("/repos/hiimbex/testing-things/check-runs")
-        .reply(200, { id: 1 })
-
-        // annotations still present
-        .patch("/repos/hiimbex/testing-things/check-runs/1", (body) => {
-          assert.strictEqual(body.output.annotations.length, 2);
-          return true;
-        })
-        .reply(200);
-
-      // No PR review mock — if commentOnPR were called, nock would fail
-
-      await probot.receive({ name: "pull_request", payload: pullRequestPayload });
-      assert.deepStrictEqual(mock.pendingMocks(), []);
-    } finally {
-      if (originalEnv === undefined) {
-        delete process.env.COMMENT_ON_PR;
-      } else {
-        process.env.COMMENT_ON_PR = originalEnv;
       }
     }
   });

@@ -5,7 +5,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import { githubOutputToAnnotations } from "../zizmor.js";
-import { getDiffLines, filterAnnotationsToChangedLines, commentOnPR } from "../github.js";
+import { getDiffLines, filterAnnotationsToChangedLines } from "../github.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -90,50 +90,5 @@ describe("filterAnnotationsToChangedLines", () => {
     const changedFileMap = new Map();
     const filtered = filterAnnotationsToChangedLines(annotations, changedFileMap);
     assert.strictEqual(filtered.length, 0);
-  });
-});
-
-describe("commentOnPR", () => {
-  test("places comment on last diff line when end_line is outside the diff", async () => {
-    const annotations = [
-      {
-        path: ".github/workflows/ci.yml",
-        start_line: 8,
-        end_line: 25,
-        annotation_level: "warning",
-        message: "[test] multi-line finding",
-        title: "test rule",
-      },
-    ];
-    // Diff covers lines 5-15
-    const changedFileMap = new Map([
-      [
-        ".github/workflows/ci.yml",
-        {
-          filename: ".github/workflows/ci.yml",
-          patch:
-            "@@ -5,6 +5,11 @@\n context\n context\n context\n+added1\n+added2\n+added3\n+added4\n+added5\n context\n context\n context",
-        },
-      ],
-    ]);
-
-    let capturedComments = null;
-    const mockContext = {
-      repo: (obj) => ({ owner: "test", repo: "test-repo", ...obj }),
-      octokit: {
-        pulls: {
-          createReview: async (params) => {
-            capturedComments = params.comments;
-          },
-        },
-      },
-    };
-
-    await commentOnPR(mockContext, 1, "abc123", annotations, changedFileMap, { warn: () => {} });
-
-    assert.strictEqual(capturedComments.length, 1);
-    // Comment should be on line 15 (last diff line within 8-25), not line 25
-    assert.strictEqual(capturedComments[0].line, 15);
-    assert.strictEqual(capturedComments[0].path, ".github/workflows/ci.yml");
   });
 });

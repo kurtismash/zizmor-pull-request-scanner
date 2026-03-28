@@ -22,7 +22,8 @@ describe("githubOutputToAnnotations", () => {
       start_line: 15,
       end_line: 15,
       annotation_level: "warning",
-      message: "actions/checkout with persist-credentials enabled",
+      message:
+        "actions/checkout with persist-credentials enabled\n\nSee https://docs.zizmor.sh/audits/artipacked for more information.",
       title: "artipacked",
     });
 
@@ -31,7 +32,8 @@ describe("githubOutputToAnnotations", () => {
       start_line: 14,
       end_line: 14,
       annotation_level: "failure",
-      message: "ci.yml uses a known-vulnerable action (actions/checkout@v1)",
+      message:
+        "ci.yml uses a known-vulnerable action (actions/checkout@v1)\n\nSee https://docs.zizmor.sh/audits/known-vulnerable-actions for more information.",
       title: "known-vulnerable-actions",
     });
   });
@@ -43,7 +45,7 @@ describe("githubOutputToAnnotations", () => {
 
 describe("buildSummary", () => {
   test("returns clean message for no annotations", () => {
-    assert.strictEqual(buildSummary([]), "zizmor found no issues in your GitHub Actions workflows.");
+    assert.strictEqual(buildSummary([]), "zizmor \u{1F308} found no issues in your GitHub Actions workflows.");
   });
 
   test("summarises mixed annotation levels", () => {

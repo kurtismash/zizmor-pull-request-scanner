@@ -1,5 +1,5 @@
 import { runZizmor as defaultRunZizmor, githubOutputToAnnotations, buildSummary } from "./zizmor.js";
-import { getChangedFileMap, filterAnnotationsToChangedLines, updateCheckRun, commentOnPR } from "./github.js";
+import { getChangedFileMap, filterAnnotationsToChangedLines, updateCheckRun } from "./github.js";
 
 /**
  * Main entrypoint to the zizmor status-check Probot app.
@@ -62,12 +62,6 @@ export default (app, { runZizmor = defaultRunZizmor } = {}) => {
 
       const annotate = process.env.ANNOTATE !== "false";
       await updateCheckRun(context, checkRunId, annotate ? reportedAnnotations : [], title, summary, conclusion);
-
-      // Post inline review comments for findings on changed lines
-      const commentOnPREnabled = process.env.COMMENT_ON_PR !== "false";
-      if (commentOnPREnabled && reportedAnnotations.length > 0) {
-        await commentOnPR(context, prNumber, sha, reportedAnnotations, changedFileMap, app.log);
-      }
     } catch (error) {
       app.log.error(error);
       await context.octokit.checks.update(
