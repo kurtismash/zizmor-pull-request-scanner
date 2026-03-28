@@ -55,7 +55,9 @@ export default (app, { runZizmor = defaultRunZizmor } = {}) => {
       // Only report findings on lines changed in this PR
       const reportedAnnotations = filterAnnotationsToChangedLines(annotations, changedFileMap);
 
-      const conclusion = reportedAnnotations.length > 0 ? "action_required" : "success";
+      const auditOnly = process.env.AUDIT_ONLY === "true";
+      const hasFindings = reportedAnnotations.length > 0;
+      const conclusion = hasFindings ? (auditOnly ? "neutral" : "action_required") : "success";
       const title =
         reportedAnnotations.length > 0 ? `zizmor found ${reportedAnnotations.length} finding(s)` : "No findings";
       const summary = buildSummary(reportedAnnotations);
