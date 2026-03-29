@@ -23,7 +23,7 @@ describe("githubOutputToAnnotations", () => {
       end_line: 15,
       annotation_level: "warning",
       message:
-        "actions/checkout with persist-credentials enabled\n\nSee https://docs.zizmor.sh/audits/artipacked for more information.",
+        "actions/checkout with persist-credentials enabled\n\nSee https://docs.zizmor.sh/audits/#artipacked for more information.",
       title: "artipacked",
     });
 
@@ -33,7 +33,7 @@ describe("githubOutputToAnnotations", () => {
       end_line: 14,
       annotation_level: "failure",
       message:
-        "ci.yml uses a known-vulnerable action (actions/checkout@v1)\n\nSee https://docs.zizmor.sh/audits/known-vulnerable-actions for more information.",
+        "ci.yml uses a known-vulnerable action (actions/checkout@v1)\n\nSee https://docs.zizmor.sh/audits/#known-vulnerable-actions for more information.",
       title: "known-vulnerable-actions",
     });
   });

@@ -1,6 +1,13 @@
 import { runZizmor as defaultRunZizmor, githubOutputToAnnotations, buildSummary } from "./zizmor.js";
-import { getChangedFileMap, filterAnnotationsToChangedLines, updateCheckRun } from "./github.js";
+import { getChangedFileMap, filterAnnotationsToChangedLines, completeCheckRun, updateCheckRun } from "./github.js";
 import { CHECK_NAME } from "./constants.js";
+
+const WORKFLOW_FILE_PATTERN =
+  /(?:\.github\/workflows\/[^/]+\.(yml|yaml)$|(?:^|\/)(?:action|dependabot)\.(yml|yaml)$)/;
+
+function isWorkflowFile(filename) {
+  return WORKFLOW_FILE_PATTERN.test(filename);
+}
 
 /**
  * Main entrypoint to the zizmor status-check Probot app.
@@ -14,7 +21,6 @@ export default (app, { runZizmor = defaultRunZizmor, configPath } = {}) => {
   async function scan(context, sha, prNumber) {
     const repo = `${context.repo().owner}/${context.repo().repo}`;
 
-    // Create the check run immediately so the PR shows "in progress"
     const {
       data: { id: checkRunId },
     } = await context.octokit.checks.create(
@@ -27,40 +33,26 @@ export default (app, { runZizmor = defaultRunZizmor, configPath } = {}) => {
     );
 
     const changedFileMap = await getChangedFileMap(context, prNumber);
+    const workflowFiles = [...changedFileMap.entries()].filter(([filename]) => isWorkflowFile(filename));
 
-    // Exit early if no workflow files were touched
-    const workflowPattern = /(?:\.github\/workflows\/[^/]+\.(yml|yaml)$|(?:^|\/)(?:action|dependabot)\.(yml|yaml)$)/;
-    const relevantFiles = [...changedFileMap.entries()].filter(([f]) => workflowPattern.test(f));
-    if (relevantFiles.length === 0) {
-      await context.octokit.checks.update(
-        context.repo({
-          check_run_id: checkRunId,
-          status: "completed",
-          conclusion: "skipped",
-          completed_at: new Date().toISOString(),
-          output: {
-            title: "No workflow changes",
-            summary: "No GitHub Actions workflow or action files were changed in this PR.",
-          },
-        }),
+    if (workflowFiles.length === 0) {
+      await completeCheckRun(
+        context,
+        checkRunId,
+        "skipped",
+        "No workflow changes",
+        "No GitHub Actions workflow or action files were changed in this PR.",
       );
       return;
     }
 
-    // Exit early if all workflow files were deleted — nothing to scan
-    const allDeleted = relevantFiles.every(([, f]) => f.status === "removed");
-    if (allDeleted) {
-      await context.octokit.checks.update(
-        context.repo({
-          check_run_id: checkRunId,
-          status: "completed",
-          conclusion: "success",
-          completed_at: new Date().toISOString(),
-          output: {
-            title: "No findings",
-            summary: "All workflow files in this PR were deleted. Nothing to scan.",
-          },
-        }),
+    if (workflowFiles.every(([, file]) => file.status === "removed")) {
+      await completeCheckRun(
+        context,
+        checkRunId,
+        "success",
+        "No findings",
+        "All workflow files in this PR were deleted. Nothing to scan.",
       );
       return;
     }
@@ -69,31 +61,23 @@ export default (app, { runZizmor = defaultRunZizmor, configPath } = {}) => {
       const { token } = await context.octokit.auth({ type: "installation" });
       const output = await runZizmor(repo, sha, token, app.log, configPath);
       const annotations = githubOutputToAnnotations(output);
-
-      // Only report findings on lines changed in this PR
       const reportedAnnotations = filterAnnotationsToChangedLines(annotations, changedFileMap);
 
-      const auditOnly = process.env.AUDIT_ONLY === "true";
       const hasFindings = reportedAnnotations.length > 0;
-      const conclusion = hasFindings ? (auditOnly ? "neutral" : "action_required") : "success";
+      const conclusion = hasFindings ? (process.env.AUDIT_ONLY === "true" ? "neutral" : "action_required") : "success";
       const title = hasFindings ? `zizmor found ${reportedAnnotations.length} finding(s)` : "No findings";
       const summary = buildSummary(reportedAnnotations);
+      const includeAnnotations = process.env.ANNOTATE !== "false";
 
-      const annotate = process.env.ANNOTATE !== "false";
-      await updateCheckRun(context, checkRunId, annotate ? reportedAnnotations : [], title, summary, conclusion);
+      await updateCheckRun(context, checkRunId, includeAnnotations ? reportedAnnotations : [], title, summary, conclusion);
     } catch (error) {
       app.log.error(error);
-      await context.octokit.checks.update(
-        context.repo({
-          check_run_id: checkRunId,
-          status: "completed",
-          conclusion: "failure",
-          completed_at: new Date().toISOString(),
-          output: {
-            title: "zizmor error",
-            summary: `An error occurred:\n\n\`\`\`\n${error.message}\n\`\`\``,
-          },
-        }),
+      await completeCheckRun(
+        context,
+        checkRunId,
+        "failure",
+        "zizmor error",
+        `An error occurred:\n\n\`\`\`\n${error.message}\n\`\`\``,
       );
     }
   }

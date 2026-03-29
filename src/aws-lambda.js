@@ -9,28 +9,29 @@ let probot;
 
 const ZIZMOR_CONFIG_PATH = "/tmp/zizmor.yml";
 
+async function fetchSSMParameter(arn) {
+  console.log(`Fetching SSM parameter: ${arn}`);
+  const { Parameter } = await ssm.send(
+    new GetParameterCommand({ Name: arn, WithDecryption: true }),
+  );
+  return Parameter.Value;
+}
+
 async function init() {
   if (probot) return;
 
   const { CREDENTIALS_SSM_PARAMETER_ARN, CONFIG_SSM_PARAMETER_ARN } = process.env;
+
   if (CREDENTIALS_SSM_PARAMETER_ARN) {
-    console.log(`Getting SSM param ${CREDENTIALS_SSM_PARAMETER_ARN}`);
-    const { Parameter } = await ssm.send(
-      new GetParameterCommand({ Name: CREDENTIALS_SSM_PARAMETER_ARN, WithDecryption: true }),
-    );
-    const config = JSON.parse(Parameter.Value);
-    for (const [key, value] of Object.entries(config)) {
+    const credentials = JSON.parse(await fetchSSMParameter(CREDENTIALS_SSM_PARAMETER_ARN));
+    for (const [key, value] of Object.entries(credentials)) {
       process.env[key] = String(value);
     }
   }
 
   let configPath;
   if (CONFIG_SSM_PARAMETER_ARN) {
-    console.log(`Getting SSM param ${CONFIG_SSM_PARAMETER_ARN}`);
-    const { Parameter } = await ssm.send(
-      new GetParameterCommand({ Name: CONFIG_SSM_PARAMETER_ARN, WithDecryption: true }),
-    );
-    await writeFile(ZIZMOR_CONFIG_PATH, Parameter.Value);
+    await writeFile(ZIZMOR_CONFIG_PATH, await fetchSSMParameter(CONFIG_SSM_PARAMETER_ARN));
     configPath = ZIZMOR_CONFIG_PATH;
   }
 
@@ -47,8 +48,9 @@ export async function handler(event) {
   await init();
 
   const { headers = {}, body = "", isBase64Encoded = false } = event;
-
-  const normalizedHeaders = Object.fromEntries(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v]));
+  const normalizedHeaders = Object.fromEntries(
+    Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v]),
+  );
 
   const id = normalizedHeaders["x-github-delivery"];
   const name = normalizedHeaders["x-github-event"];

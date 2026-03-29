@@ -1,3 +1,5 @@
+import { ZIZMOR_AUDITS_URL } from "./constants.js";
+
 export function getDiffLines(patch) {
   if (!patch) return new Set();
 
@@ -19,23 +21,31 @@ export function getDiffLines(patch) {
 }
 
 export function filterAnnotationsToChangedLines(annotations, changedFileMap) {
-  return annotations
-    .filter((a) => {
-      const file = changedFileMap.get(a.path);
-      if (!file) return false;
-      const diffLines = getDiffLines(file.patch);
-      for (let line = a.start_line; line <= a.end_line; line++) {
-        if (diffLines.has(line)) return true;
+  const result = [];
+
+  for (const annotation of annotations) {
+    const file = changedFileMap.get(annotation.path);
+    if (!file) continue;
+
+    const diffLines = getDiffLines(file.patch);
+    let touchesDiff = false;
+    for (let line = annotation.start_line; line <= annotation.end_line; line++) {
+      if (diffLines.has(line)) {
+        touchesDiff = true;
+        break;
       }
-      return false;
-    })
-    .map((a) => {
-      const diffLines = getDiffLines(changedFileMap.get(a.path).patch);
-      if (!diffLines.has(a.end_line)) {
-        return { ...a, end_line: a.start_line };
-      }
-      return a;
-    });
+    }
+    if (!touchesDiff) continue;
+
+    // Clamp end_line to diff range so GitHub renders the annotation correctly
+    if (!diffLines.has(annotation.end_line)) {
+      result.push({ ...annotation, end_line: annotation.start_line });
+    } else {
+      result.push(annotation);
+    }
+  }
+
+  return result;
 }
 
 export async function getChangedFileMap(context, prNumber) {
@@ -55,38 +65,45 @@ function chunk(arr, size) {
   return chunks;
 }
 
-export async function updateCheckRun(context, checkRunId, annotations, title, summary, conclusion) {
-  const batches = chunk(annotations, 50);
+const MAX_ANNOTATIONS_PER_BATCH = 50;
 
-  if (batches.length > 0) {
-    for (let i = 0; i < batches.length - 1; i++) {
-      await context.octokit.checks.update(
-        context.repo({
-          check_run_id: checkRunId,
-          output: { title, summary, annotations: batches[i] },
-        }),
-      );
-    }
-    // Final batch — mark as completed
+export async function completeCheckRun(context, checkRunId, conclusion, title, summary) {
+  await context.octokit.checks.update(
+    context.repo({
+      check_run_id: checkRunId,
+      status: "completed",
+      conclusion,
+      completed_at: new Date().toISOString(),
+      output: { title, summary },
+    }),
+  );
+}
+
+export async function updateCheckRun(context, checkRunId, annotations, title, summary, conclusion) {
+  const batches = chunk(annotations, MAX_ANNOTATIONS_PER_BATCH);
+
+  for (const batch of batches.slice(0, -1)) {
     await context.octokit.checks.update(
       context.repo({
         check_run_id: checkRunId,
-        details_url: "https://docs.zizmor.sh/audits",
-        status: "completed",
-        conclusion,
-        completed_at: new Date().toISOString(),
-        output: { title, summary, annotations: batches.at(-1) },
-      }),
-    );
-  } else {
-    await context.octokit.checks.update(
-      context.repo({
-        check_run_id: checkRunId,
-        status: "completed",
-        conclusion,
-        completed_at: new Date().toISOString(),
-        output: { title, summary },
+        output: { title, summary, annotations: batch },
       }),
     );
   }
+
+  const lastBatch = batches.at(-1);
+  await context.octokit.checks.update(
+    context.repo({
+      check_run_id: checkRunId,
+      ...(lastBatch && { details_url: ZIZMOR_AUDITS_URL }),
+      status: "completed",
+      conclusion,
+      completed_at: new Date().toISOString(),
+      output: {
+        title,
+        summary,
+        ...(lastBatch && { annotations: lastBatch }),
+      },
+    }),
+  );
 }
