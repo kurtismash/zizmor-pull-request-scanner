@@ -31,8 +31,8 @@ export default (app, { runZizmor = defaultRunZizmor } = {}) => {
 
     // Exit early if no workflow files were touched
     const workflowPattern = /(?:\.github\/workflows\/[^/]+\.(yml|yaml)$|(?:^|\/)(?:action|dependabot)\.(yml|yaml)$)/;
-    const hasRelevantFiles = [...changedFileMap.keys()].some((f) => workflowPattern.test(f));
-    if (!hasRelevantFiles) {
+    const relevantFiles = [...changedFileMap.entries()].filter(([f]) => workflowPattern.test(f));
+    if (relevantFiles.length === 0) {
       await context.octokit.checks.update(
         context.repo({
           check_run_id: checkRunId,
@@ -42,6 +42,24 @@ export default (app, { runZizmor = defaultRunZizmor } = {}) => {
           output: {
             title: "No workflow changes",
             summary: "No GitHub Actions workflow or action files were changed in this PR.",
+          },
+        }),
+      );
+      return;
+    }
+
+    // Exit early if all workflow files were deleted — nothing to scan
+    const allDeleted = relevantFiles.every(([, f]) => f.status === "removed");
+    if (allDeleted) {
+      await context.octokit.checks.update(
+        context.repo({
+          check_run_id: checkRunId,
+          status: "completed",
+          conclusion: "success",
+          completed_at: new Date().toISOString(),
+          output: {
+            title: "No findings",
+            summary: "All workflow files in this PR were deleted. Nothing to scan.",
           },
         }),
       );

@@ -190,6 +190,43 @@ describe("zizmor status check app", () => {
     assert.deepStrictEqual(mock.pendingMocks(), []);
   });
 
+  test("succeeds when all workflow files are deleted", async () => {
+    const mockRunZizmor = async () => {
+      throw new Error("should not be called");
+    };
+    probot.load((app) => myProbotApp(app, { runZizmor: mockRunZizmor }));
+
+    const mock = nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test", permissions: { checks: "write" } })
+
+      // list PR files — all workflow files deleted
+      .get("/repos/hiimbex/testing-things/pulls/121/files?per_page=100")
+      .reply(200, [
+        {
+          filename: ".github/workflows/ci.yml",
+          status: "removed",
+          patch: "@@ -1,3 +0,0 @@\n-old line 1\n-old line 2\n-old line 3",
+        },
+      ])
+
+      // create check run (in_progress)
+      .post("/repos/hiimbex/testing-things/check-runs")
+      .reply(200, { id: 1 })
+
+      // update check run (completed, success)
+      .patch("/repos/hiimbex/testing-things/check-runs/1", (body) => {
+        assert.strictEqual(body.status, "completed");
+        assert.strictEqual(body.conclusion, "success");
+        assert.ok(body.output.summary.includes("deleted"));
+        return true;
+      })
+      .reply(200);
+
+    await probot.receive({ name: "pull_request", payload: pullRequestPayload });
+    assert.deepStrictEqual(mock.pendingMocks(), []);
+  });
+
   test("skips annotations when ANNOTATE=false", async () => {
     const originalEnv = process.env.ANNOTATE;
     process.env.ANNOTATE = "false";
