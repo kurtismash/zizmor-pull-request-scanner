@@ -6,11 +6,9 @@ resource "aws_ssm_parameter" "credentials" {
   name = "${var.resource_name_prefix}-credentials"
   type = "SecureString"
   value = jsonencode({
-    APP_ID               = 0
-    GITHUB_CLIENT_ID     = ""
-    GITHUB_CLIENT_SECRET = ""
-    PRIVATE_KEY          = ""
-    WEBHOOK_SECRET       = ""
+    APP_ID         = 0
+    PRIVATE_KEY    = ""
+    WEBHOOK_SECRET = ""
   })
 
   lifecycle {
