@@ -18,6 +18,14 @@ const pullRequestPayload = JSON.parse(
 
 const sampleOutput = fs.readFileSync(path.join(__dirname, "fixtures/sample.github-output.txt"), "utf-8");
 
+const checkRunRerequestedPayload = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "fixtures/check_run.rerequested.json"), "utf-8"),
+);
+
+const checkSuiteRerequestedPayload = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "fixtures/check_suite.rerequested.json"), "utf-8"),
+);
+
 const emptyOutput = "";
 
 // ---------------------------------------------------------------------------
@@ -267,6 +275,79 @@ describe("zizmor status check app", () => {
         delete process.env.ANNOTATE;
       } else {
         process.env.ANNOTATE = originalEnv;
+      }
+    }
+  });
+
+  test("re-runs scan on check_run.rerequested", async () => {
+    const mockRunZizmor = async () => emptyOutput;
+    probot.load((app) => myProbotApp(app, { runZizmor: mockRunZizmor }));
+
+    const mock = nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test", permissions: { checks: "write" } })
+
+      .get("/repos/hiimbex/testing-things/pulls/121/files?per_page=100")
+      .reply(200, [
+        {
+          filename: ".github/workflows/ci.yml",
+          status: "modified",
+          patch: "@@ -1,3 +1,4 @@\n+new line\n context\n context\n context",
+        },
+      ])
+
+      .post("/repos/hiimbex/testing-things/check-runs")
+      .reply(200, { id: 2 })
+
+      .patch("/repos/hiimbex/testing-things/check-runs/2", (body) => {
+        assert.strictEqual(body.status, "completed");
+        assert.strictEqual(body.conclusion, "success");
+        return true;
+      })
+      .reply(200);
+
+    await probot.receive({ name: "check_run", payload: checkRunRerequestedPayload });
+    assert.deepStrictEqual(mock.pendingMocks(), []);
+  });
+
+  test("re-runs scan on check_suite.rerequested", async () => {
+    const originalAppId = process.env.APP_ID;
+    process.env.APP_ID = "18586";
+
+    try {
+      const mockRunZizmor = async () => emptyOutput;
+      probot.load((app) => myProbotApp(app, { runZizmor: mockRunZizmor }));
+
+      const mock = nock("https://api.github.com")
+        .post("/app/installations/2/access_tokens")
+        .reply(200, { token: "test", permissions: { checks: "write" } })
+
+        .get("/repos/hiimbex/testing-things/pulls/121/files?per_page=100")
+        .reply(200, [
+          {
+            filename: ".github/workflows/ci.yml",
+            status: "modified",
+            patch: "@@ -1,3 +1,4 @@\n+new line\n context\n context\n context",
+          },
+        ])
+
+        .post("/repos/hiimbex/testing-things/check-runs")
+        .reply(200, { id: 3 })
+
+        .patch("/repos/hiimbex/testing-things/check-runs/3", (body) => {
+          assert.strictEqual(body.status, "completed");
+          assert.strictEqual(body.conclusion, "success");
+          return true;
+        })
+        .reply(200);
+
+      await probot.receive({ name: "check_suite", payload: checkSuiteRerequestedPayload });
+      assert.deepStrictEqual(mock.pendingMocks(), []);
+    } finally {
+      if (originalAppId === undefined) {
+        delete process.env.APP_ID;
+      } else {
+        process.env.APP_ID = originalAppId;
       }
     }
   });

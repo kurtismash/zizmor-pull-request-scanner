@@ -1,5 +1,6 @@
 import { runZizmor as defaultRunZizmor, githubOutputToAnnotations, buildSummary } from "./zizmor.js";
 import { getChangedFileMap, filterAnnotationsToChangedLines, updateCheckRun } from "./github.js";
+import { CHECK_NAME } from "./constants.js";
 
 /**
  * Main entrypoint to the zizmor status-check Probot app.
@@ -9,10 +10,7 @@ import { getChangedFileMap, filterAnnotationsToChangedLines, updateCheckRun } fr
  * @param {Function} [deps.runZizmor] — async (repo, sha, token, log) => github output string
  */
 export default (app, { runZizmor = defaultRunZizmor } = {}) => {
-  app.on(["pull_request.opened", "pull_request.synchronize"], async (context) => {
-    const { pull_request } = context.payload;
-    const sha = pull_request.head.sha;
-    const prNumber = pull_request.number;
+  async function scan(context, sha, prNumber) {
     const repo = `${context.repo().owner}/${context.repo().repo}`;
 
     // Create the check run immediately so the PR shows "in progress"
@@ -20,7 +18,7 @@ export default (app, { runZizmor = defaultRunZizmor } = {}) => {
       data: { id: checkRunId },
     } = await context.octokit.checks.create(
       context.repo({
-        name: "zizmor 🌈",
+        name: CHECK_NAME,
         head_sha: sha,
         status: "in_progress",
         started_at: new Date().toISOString(),
@@ -97,5 +95,26 @@ export default (app, { runZizmor = defaultRunZizmor } = {}) => {
         }),
       );
     }
+  }
+
+  app.on(["pull_request.opened", "pull_request.synchronize"], async (context) => {
+    const { pull_request } = context.payload;
+    await scan(context, pull_request.head.sha, pull_request.number);
+  });
+
+  app.on("check_run.rerequested", async (context) => {
+    const { check_run } = context.payload;
+    if (check_run.name !== CHECK_NAME) return;
+    const pr = check_run.check_suite?.pull_requests?.[0];
+    if (!pr) return;
+    await scan(context, check_run.head_sha, pr.number);
+  });
+
+  app.on("check_suite.rerequested", async (context) => {
+    const { check_suite } = context.payload;
+    if (check_suite.app?.id !== parseInt(process.env.APP_ID, 10)) return;
+    const pr = check_suite.pull_requests?.[0];
+    if (!pr) return;
+    await scan(context, check_suite.head_sha, pr.number);
   });
 };
