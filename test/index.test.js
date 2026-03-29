@@ -16,6 +16,10 @@ const pullRequestPayload = JSON.parse(
   fs.readFileSync(path.join(__dirname, "fixtures/pull_request.opened.json"), "utf-8"),
 );
 
+const pullRequestReopenedPayload = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "fixtures/pull_request.reopened.json"), "utf-8"),
+);
+
 const sampleOutput = fs.readFileSync(path.join(__dirname, "fixtures/sample.github-output.txt"), "utf-8");
 
 const checkRunRerequestedPayload = JSON.parse(
@@ -277,6 +281,37 @@ describe("zizmor status check app", () => {
         process.env.ANNOTATE = originalEnv;
       }
     }
+  });
+
+  test("re-runs scan on pull_request.reopened", async () => {
+    const mockRunZizmor = async () => emptyOutput;
+    probot.load((app) => myProbotApp(app, { runZizmor: mockRunZizmor }));
+
+    const mock = nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test", permissions: { checks: "write" } })
+
+      .get("/repos/hiimbex/testing-things/pulls/121/files?per_page=100")
+      .reply(200, [
+        {
+          filename: ".github/workflows/ci.yml",
+          status: "modified",
+          patch: "@@ -1,3 +1,4 @@\n+new line\n context\n context\n context",
+        },
+      ])
+
+      .post("/repos/hiimbex/testing-things/check-runs")
+      .reply(200, { id: 2 })
+
+      .patch("/repos/hiimbex/testing-things/check-runs/2", (body) => {
+        assert.strictEqual(body.status, "completed");
+        assert.strictEqual(body.conclusion, "success");
+        return true;
+      })
+      .reply(200);
+
+    await probot.receive({ name: "pull_request", payload: pullRequestReopenedPayload });
+    assert.deepStrictEqual(mock.pendingMocks(), []);
   });
 
   test("re-runs scan on check_run.rerequested", async () => {

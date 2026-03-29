@@ -97,7 +97,7 @@ export default (app, { runZizmor = defaultRunZizmor } = {}) => {
     }
   }
 
-  app.on(["pull_request.opened", "pull_request.synchronize"], async (context) => {
+  app.on(["pull_request.opened", "pull_request.reopened", "pull_request.synchronize"], async (context) => {
     const { pull_request } = context.payload;
     await scan(context, pull_request.head.sha, pull_request.number);
   });
