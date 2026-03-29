@@ -31,7 +31,10 @@ async function init() {
 
   let configPath;
   if (CONFIG_SSM_PARAMETER_ARN) {
-    await writeFile(ZIZMOR_CONFIG_PATH, await fetchSSMParameter(CONFIG_SSM_PARAMETER_ARN));
+    const configValue = await fetchSSMParameter(CONFIG_SSM_PARAMETER_ARN);
+    // Replace literal \n sequences with actual newlines (common when the
+    // Terraform variable is set via a shell environment variable).
+    await writeFile(ZIZMOR_CONFIG_PATH, configValue.replace(/\\n/g, "\n"));
     configPath = ZIZMOR_CONFIG_PATH;
   }
 

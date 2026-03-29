@@ -86,10 +86,14 @@ resource "aws_lambda_function" "lambda" {
   source_code_hash = data.archive_file.lambda.output_base64sha256
 
   environment {
-    variables = {
-      CONFIG_SSM_PARAMETER_ARN      = aws_ssm_parameter.config.arn
-      CREDENTIALS_SSM_PARAMETER_ARN = aws_ssm_parameter.credentials.arn
-    }
+    variables = merge(
+      {
+        CREDENTIALS_SSM_PARAMETER_ARN = aws_ssm_parameter.credentials.arn
+      },
+      var.zizmor_config != "" ? {
+        CONFIG_SSM_PARAMETER_ARN = aws_ssm_parameter.config.arn
+      } : {}
+    )
   }
 }
 
