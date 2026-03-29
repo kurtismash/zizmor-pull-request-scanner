@@ -56,7 +56,7 @@ export function githubOutputToAnnotations(output) {
       start_line: startLine,
       end_line: parseInt(props.endLine ?? String(startLine), 10),
       annotation_level: level === "error" ? "failure" : level,
-      message: `${cleanMessage}\n\nSee https://docs.zizmor.sh/audits/${props.title} for more information.`,
+      message: `${cleanMessage}\n\nSee https://docs.zizmor.sh/audits/#${props.title} for more information.`,
       title: props.title ?? "",
     });
   }
