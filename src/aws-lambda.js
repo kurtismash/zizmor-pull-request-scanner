@@ -1,4 +1,5 @@
 import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
+import { writeFile } from "fs/promises";
 import { createProbot } from "probot";
 import pino from "pino";
 import appFn from "./index.js";
@@ -6,10 +7,12 @@ import appFn from "./index.js";
 const ssm = new SSMClient();
 let probot;
 
+const ZIZMOR_CONFIG_PATH = "/tmp/zizmor.yml";
+
 async function init() {
   if (probot) return;
 
-  const { CREDENTIALS_SSM_PARAMETER_ARN } = process.env;
+  const { CREDENTIALS_SSM_PARAMETER_ARN, CONFIG_SSM_PARAMETER_ARN } = process.env;
   if (CREDENTIALS_SSM_PARAMETER_ARN) {
     console.log(`Getting SSM param ${CREDENTIALS_SSM_PARAMETER_ARN}`);
     const { Parameter } = await ssm.send(
@@ -21,12 +24,22 @@ async function init() {
     }
   }
 
+  let configPath;
+  if (CONFIG_SSM_PARAMETER_ARN) {
+    console.log(`Getting SSM param ${CONFIG_SSM_PARAMETER_ARN}`);
+    const { Parameter } = await ssm.send(
+      new GetParameterCommand({ Name: CONFIG_SSM_PARAMETER_ARN, WithDecryption: true }),
+    );
+    await writeFile(ZIZMOR_CONFIG_PATH, Parameter.Value);
+    configPath = ZIZMOR_CONFIG_PATH;
+  }
+
   probot = createProbot({
     overrides: {
       log: pino({ level: process.env.LOG_LEVEL || "info" }, pino.destination({ fd: 1, sync: true })),
     },
   });
-  await probot.load(appFn);
+  await probot.load((app) => appFn(app, { configPath }));
 }
 
 export async function handler(event) {

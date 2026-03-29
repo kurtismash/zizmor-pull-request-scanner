@@ -7,9 +7,10 @@ import { CHECK_NAME } from "./constants.js";
  *
  * @param {import('probot').Probot} app
  * @param {object} [deps] — injectable dependencies (used in tests)
- * @param {Function} [deps.runZizmor] — async (repo, sha, token, log) => github output string
+ * @param {Function} [deps.runZizmor] — async (repo, sha, token, log, configPath) => github output string
+ * @param {string|undefined} [deps.configPath] — optional path to a zizmor configuration file
  */
-export default (app, { runZizmor = defaultRunZizmor } = {}) => {
+export default (app, { runZizmor = defaultRunZizmor, configPath } = {}) => {
   async function scan(context, sha, prNumber) {
     const repo = `${context.repo().owner}/${context.repo().repo}`;
 
@@ -66,7 +67,7 @@ export default (app, { runZizmor = defaultRunZizmor } = {}) => {
 
     try {
       const { token } = await context.octokit.auth({ type: "installation" });
-      const output = await runZizmor(repo, sha, token, app.log);
+      const output = await runZizmor(repo, sha, token, app.log, configPath);
       const annotations = githubOutputToAnnotations(output);
 
       // Only report findings on lines changed in this PR

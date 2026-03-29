@@ -3,6 +3,12 @@ variable "resource_name_prefix" {
   default = "zizmor-pull-request-scanner"
 }
 
+variable "zizmor_config" {
+  type        = string
+  default     = ""
+  description = "Contents of the zizmor configuration file (YAML). When set, this is stored in SSM Parameter Store and passed to zizmor via --config on each scan."
+}
+
 variable "zizmor_installation" {
   type = object({
     checksum     = string

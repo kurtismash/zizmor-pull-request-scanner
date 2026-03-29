@@ -21,13 +21,7 @@ resource "aws_ssm_parameter" "credentials" {
 resource "aws_ssm_parameter" "config" {
   name  = "${var.resource_name_prefix}-config"
   type  = "SecureString"
-  value = <<-EOT
-    rules:
-  EOT
-
-  lifecycle {
-    ignore_changes = [value]
-  }
+  value = var.zizmor_config != "" ? var.zizmor_config : "rules:\n"
 }
 
 module "lambda_role" {

@@ -3,21 +3,23 @@ import { promisify } from "util";
 
 const execFileAsync = promisify(execFile);
 
-export async function runZizmor(repo, headSha, token, log) {
+export async function runZizmor(repo, headSha, token, log, configPath) {
   const target = `${repo}@${headSha}`;
 
   log.info(`Running zizmor on ${target}`);
 
+  const args = ["--cache-dir", "/tmp/zizmor", "--format", "github", "--gh-token", token];
+  if (configPath) {
+    args.push("--config", configPath);
+  }
+  args.push(target);
+
   let stdout;
   try {
-    ({ stdout } = await execFileAsync(
-      "./zizmor",
-      ["--cache-dir", "/tmp/zizmor", "--format", "github", "--gh-token", token, target],
-      {
-        timeout: 180_000,
-        maxBuffer: 10 * 1024 * 1024,
-      },
-    ));
+    ({ stdout } = await execFileAsync("./zizmor", args, {
+      timeout: 180_000,
+      maxBuffer: 10 * 1024 * 1024,
+    }));
   } catch (err) {
     // zizmor exits non-zero when findings are present but still writes output
     if (err.stdout) {
