@@ -12,7 +12,7 @@ export async function runZizmor(repo, headSha, token, log, configPath) {
   const target = `${repo}@${headSha}`;
   log.info(`Running zizmor on ${target}`);
 
-  const args = ["--cache-dir", "/tmp/zizmor", "--format", "github", "--gh-token", token];
+  const args = ["--cache-dir", "/tmp/zizmor", "--format", "github"];
   if (configPath) {
     args.push("--config", configPath);
   }
@@ -22,6 +22,9 @@ export async function runZizmor(repo, headSha, token, log, configPath) {
     const { stdout } = await execFileAsync("./zizmor", args, {
       timeout: ZIZMOR_TIMEOUT_MS,
       maxBuffer: ZIZMOR_MAX_BUFFER,
+      env: {
+        GH_TOKEN: token,
+      },
     });
     return stdout ?? "";
   } catch (err) {
