@@ -77,13 +77,14 @@ data "archive_file" "lambda" {
 }
 
 resource "aws_lambda_function" "lambda" {
+  filename         = data.archive_file.lambda.output_path
   function_name    = local.lambda_function_name
+  handler          = "aws-lambda.handler"
+  memory_size      = var.lambda_config.memory_size
   role             = module.lambda_role.role.arn
   runtime          = "nodejs24.x"
-  handler          = "aws-lambda.handler"
-  timeout          = 600
-  filename         = data.archive_file.lambda.output_path
   source_code_hash = data.archive_file.lambda.output_base64sha256
+  timeout          = var.lambda_config.timeout
 
   environment {
     variables = merge(

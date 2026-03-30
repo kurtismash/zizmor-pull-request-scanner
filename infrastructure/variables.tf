@@ -1,3 +1,11 @@
+
+variable "lambda_config" {
+  type = object({
+    memory_size = optional(number, 512)
+    timeout     = optional(number, 600)
+  })
+  default = {}
+}
 variable "resource_name_prefix" {
   type    = string
   default = "zizmor-pull-request-scanner"
