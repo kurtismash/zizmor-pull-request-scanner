@@ -47,8 +47,9 @@ module "lambda_role" {
 
 resource "null_resource" "build_lambda_package" {
   triggers = {
-    src_hash  = sha1(join("", [for f in fileset("${path.module}/../src", "**/*.js") : filesha1("${path.module}/../src/${f}")]))
-    deps_hash = filesha1("${path.module}/../package-lock.json")
+    src_hash            = sha1(join("", [for f in fileset("${path.module}/../src", "**/*.js") : filesha1("${path.module}/../src/${f}")]))
+    deps_hash           = filesha1("${path.module}/../package-lock.json")
+    zizmor_installation = jsonencode(var.zizmor_installation)
   }
 
   provisioner "local-exec" {
