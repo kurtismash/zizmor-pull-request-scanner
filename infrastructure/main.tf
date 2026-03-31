@@ -1,5 +1,11 @@
 locals {
   lambda_function_name = "${var.resource_name_prefix}-lambda"
+  build_zip_name       = "${path.module}/build.zip"
+  source_code_fixity = sha256(join(",", flatten([
+    [for f in fileset("${path.module}/../src", "**") : filesha256("${path.module}/../src/${f}")],
+    filesha256("${path.module}/../package-lock.json"),
+    jsonencode(var.zizmor_installation)
+  ])))
 }
 
 resource "aws_ssm_parameter" "credentials" {
@@ -45,46 +51,25 @@ module "lambda_role" {
   policy_arns = ["arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
 }
 
-resource "null_resource" "build_lambda_package" {
-  triggers = {
-    src_hash            = sha1(join("", [for f in fileset("${path.module}/../src", "**/*.js") : filesha1("${path.module}/../src/${f}")]))
-    deps_hash           = filesha1("${path.module}/../package-lock.json")
-    zizmor_installation = jsonencode(var.zizmor_installation)
-  }
+resource "terraform_data" "build_lambda_package" {
+  triggers_replace = [
+    local.source_code_fixity
+  ]
 
   provisioner "local-exec" {
     interpreter = ["/bin/sh", "-c"]
-    command     = <<-EOT
-      set -e
-      cd "${path.module}/.."
-      rm -rf build && mkdir build
-      cp -r src/* build/
-      cp package.json package-lock.json build/
-      cd build
-      npm ci --production --ignore-scripts
-      curl -sL "${var.zizmor_installation.download_url}" -o zizmor.tar.gz
-      echo "${var.zizmor_installation.checksum}  zizmor.tar.gz" | sha256sum -c -
-      tar -xzf zizmor.tar.gz
-      chmod +x zizmor
-    EOT
+    command     = "(cd ${path.module}/.. && npm run build -- lambda ${var.zizmor_installation.download_url} ${var.zizmor_installation.checksum} && cd build/ && zip -r build.zip . && cp build.zip ${abspath(path.module)}/)"
   }
 }
 
-data "archive_file" "lambda" {
-  depends_on  = [null_resource.build_lambda_package]
-  type        = "zip"
-  source_dir  = "${path.module}/../build"
-  output_path = "${path.module}/../build.zip"
-}
-
 resource "aws_lambda_function" "lambda" {
-  filename         = data.archive_file.lambda.output_path
+  filename         = "${path.module}/build.zip"
   function_name    = local.lambda_function_name
   handler          = "aws-lambda.handler"
   memory_size      = var.lambda_config.memory_size
   role             = module.lambda_role.role.arn
   runtime          = "nodejs24.x"
-  source_code_hash = data.archive_file.lambda.output_base64sha256
+  source_code_hash = local.source_code_fixity
   timeout          = var.lambda_config.timeout
 
   environment {
@@ -97,6 +82,8 @@ resource "aws_lambda_function" "lambda" {
       } : {}
     )
   }
+
+  depends_on = [terraform_data.build_lambda_package]
 }
 
 resource "aws_cloudwatch_log_group" "lambda" {
