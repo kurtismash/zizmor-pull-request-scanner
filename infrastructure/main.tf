@@ -58,12 +58,12 @@ resource "terraform_data" "build_lambda_package" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/sh", "-c"]
-    command     = "cd ${path.module}/.. && npm run build -- lambda ${var.zizmor_installation.download_url} ${var.zizmor_installation.checksum} && zip -r 'build.zip' 'build/'"
+    command     = "(cd ${path.module}/.. && npm run build -- lambda ${var.zizmor_installation.download_url} ${var.zizmor_installation.checksum} && cd build/ && zip -r build.zip . && cp build.zip ${abspath(path.module)}/)"
   }
 }
 
 resource "aws_lambda_function" "lambda" {
-  filename         = "../build.zip"
+  filename         = "${path.module}/build.zip"
   function_name    = local.lambda_function_name
   handler          = "aws-lambda.handler"
   memory_size      = var.lambda_config.memory_size
@@ -82,6 +82,8 @@ resource "aws_lambda_function" "lambda" {
       } : {}
     )
   }
+
+  depends_on = [terraform_data.build_lambda_package]
 }
 
 resource "aws_cloudwatch_log_group" "lambda" {
