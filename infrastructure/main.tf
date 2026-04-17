@@ -71,6 +71,9 @@ resource "aws_lambda_function" "lambda" {
   runtime          = "nodejs24.x"
   source_code_hash = local.source_code_fixity
   timeout          = var.lambda_config.timeout
+  tags = {
+    "name" = local.lambda_function_name
+  }
 
   environment {
     variables = merge(
@@ -89,6 +92,9 @@ resource "aws_lambda_function" "lambda" {
 resource "aws_cloudwatch_log_group" "lambda" {
   name              = "/aws/lambda/${local.lambda_function_name}"
   retention_in_days = 30
+  tags = {
+    "name" = "/aws/lambda/${local.lambda_function_name}"
+  }
 }
 
 resource "aws_lambda_function_url" "lambda" {
