@@ -193,7 +193,7 @@ describe("zizmor status check app", () => {
       // update check run (completed, failure)
       .patch("/repos/hiimbex/testing-things/check-runs/1", (body) => {
         assert.strictEqual(body.conclusion, "failure");
-        assert.ok(body.output.summary.includes("zizmor not found"));
+        assert.ok(body.output.summary.includes("internal error"));
         return true;
       })
       .reply(200);

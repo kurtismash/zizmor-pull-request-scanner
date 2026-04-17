@@ -1,6 +1,6 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { ZIZMOR_AUDITS_URL } from "./constants.js";
+import { buildAnnotationMessage } from "./audit-descriptions.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -54,14 +54,15 @@ export function githubOutputToAnnotations(output) {
     const props = parseAnnotationParams(params);
     const startLine = parseInt(props.line ?? "1", 10);
     const cleanMessage = message.replace(/^[^:]+:\d+:\s*/, "");
+    const auditId = props.title ?? "";
 
     annotations.push({
       path: props.file ?? "",
       start_line: startLine,
       end_line: parseInt(props.endLine ?? String(startLine), 10),
       annotation_level: level === "error" ? "failure" : level,
-      message: `${cleanMessage}\n\nSee ${ZIZMOR_AUDITS_URL}/#${props.title} for more information.`,
-      title: props.title ?? "",
+      message: buildAnnotationMessage(auditId, cleanMessage),
+      title: auditId,
     });
   }
 

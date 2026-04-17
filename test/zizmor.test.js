@@ -22,8 +22,15 @@ describe("githubOutputToAnnotations", () => {
       start_line: 15,
       end_line: 15,
       annotation_level: "warning",
-      message:
-        "actions/checkout with persist-credentials enabled\n\nSee https://docs.zizmor.sh/audits/#artipacked for more information.",
+      message: [
+        "actions/checkout with persist-credentials enabled",
+        "",
+        "By default, `actions/checkout` persists credentials on disk. Subsequent steps may accidentally expose them, e.g. via a publicly accessible artifact.",
+        "",
+        "How to fix: Use `actions/checkout` with `persist-credentials: false` unless your workflow explicitly needs git credentials. If the persisted credential is needed, it should be made explicit with `persist-credentials: true`.",
+        "",
+        "See https://docs.zizmor.sh/audits/#artipacked for more information.",
+      ].join("\n"),
       title: "artipacked",
     });
 
@@ -32,8 +39,15 @@ describe("githubOutputToAnnotations", () => {
       start_line: 14,
       end_line: 14,
       annotation_level: "failure",
-      message:
-        "ci.yml uses a known-vulnerable action (actions/checkout@v1)\n\nSee https://docs.zizmor.sh/audits/#known-vulnerable-actions for more information.",
+      message: [
+        "ci.yml uses a known-vulnerable action (actions/checkout@v1)",
+        "",
+        "This action has a known, publicly disclosed vulnerability tracked in the GitHub Advisories database.",
+        "",
+        "How to fix: Upgrade to a fixed version of the action, or remove its usage entirely if no fix is available.",
+        "",
+        "See https://docs.zizmor.sh/audits/#known-vulnerable-actions for more information.",
+      ].join("\n"),
       title: "known-vulnerable-actions",
     });
   });

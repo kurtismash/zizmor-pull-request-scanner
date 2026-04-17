@@ -59,14 +59,20 @@ export default (app, { runZizmor = defaultRunZizmor, configPath } = {}) => {
 
     try {
       const { token } = await context.octokit.auth({ type: "installation" });
+      const redact = (str) => token ? str.replaceAll(token, "[REDACTED]") : str;
+
       const output = await runZizmor(repo, sha, token, app.log, configPath);
-      const annotations = githubOutputToAnnotations(output);
+      const annotations = githubOutputToAnnotations(output).map((a) => ({
+        ...a,
+        message: redact(a.message),
+        title: redact(a.title),
+      }));
       const reportedAnnotations = filterAnnotationsToChangedLines(annotations, changedFileMap);
 
       const hasFindings = reportedAnnotations.length > 0;
       const conclusion = hasFindings ? (process.env.AUDIT_ONLY === "true" ? "neutral" : "action_required") : "success";
       const title = hasFindings ? `zizmor found ${reportedAnnotations.length} finding(s)` : "No findings";
-      const summary = buildSummary(reportedAnnotations);
+      const summary = redact(buildSummary(reportedAnnotations));
       const includeAnnotations = process.env.ANNOTATE !== "false";
 
       await updateCheckRun(context, checkRunId, includeAnnotations ? reportedAnnotations : [], title, summary, conclusion);
@@ -77,7 +83,7 @@ export default (app, { runZizmor = defaultRunZizmor, configPath } = {}) => {
         checkRunId,
         "failure",
         "zizmor error",
-        `An error occurred:\n\n\`\`\`\n${error.message}\n\`\`\``,
+        "An internal error occurred while running zizmor. Check the application logs for details.",
       );
     }
   }
