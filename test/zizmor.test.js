@@ -59,13 +59,19 @@ describe("githubOutputToAnnotations", () => {
 
 describe("buildSummary", () => {
   test("returns clean message for no annotations", () => {
-    assert.strictEqual(buildSummary([]), "zizmor \u{1F308} found no issues in your GitHub Actions workflows.");
+    assert.deepStrictEqual(buildSummary([]), {
+      conclusion: "success",
+      title: "No findings",
+      summary: "zizmor \u{1F308} found no issues in your GitHub Actions workflows.",
+    });
   });
 
   test("summarises mixed annotation levels", () => {
     const annotations = githubOutputToAnnotations(sampleOutput);
-    const summary = buildSummary(annotations);
-    assert.ok(summary.includes("1 error(s)"));
-    assert.ok(summary.includes("1 warning(s)"));
+    const result = buildSummary(annotations);
+    assert.strictEqual(result.conclusion, "action_required");
+    assert.ok(result.title.includes("error(s)"));
+    assert.ok(result.summary.includes("1 error(s)"));
+    assert.ok(result.summary.includes("1 warning(s)"));
   });
 });

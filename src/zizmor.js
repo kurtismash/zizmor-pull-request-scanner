@@ -71,7 +71,11 @@ export function githubOutputToAnnotations(output) {
 
 export function buildSummary(annotations) {
   if (annotations.length === 0) {
-    return "zizmor 🌈 found no issues in your GitHub Actions workflows.";
+    return {
+      conclusion: "success",
+      title: "No findings",
+      summary: "zizmor 🌈 found no issues in your GitHub Actions workflows.",
+    };
   }
 
   const counts = { failure: 0, warning: 0, notice: 0 };
@@ -82,5 +86,14 @@ export function buildSummary(annotations) {
   if (counts.warning) parts.push(`${counts.warning} warning(s)`);
   if (counts.notice) parts.push(`${counts.notice} notice(s)`);
 
-  return `zizmor 🌈 found ${parts.join(", ")} in your GitHub Actions workflows.\n\nSee the annotations for details.`;
+  let title = "zizmor found ";
+  if (counts.failure > 0) title += `${counts.failure} error(s)`;
+  if (counts.failure > 0 && (counts.warning || counts.notice)) title += ` and `;
+  if (counts.warning || counts.notice) title += `${counts.warning + counts.notice} finding(s)`;
+
+  return {
+    conclusion: counts.failure > 0 ? "action_required" : "neutral",
+    title: title,
+    summary: `zizmor 🌈 found ${parts.join(", ")} in your GitHub Actions workflows.\n\nSee the annotations for details.`,
+  };
 }

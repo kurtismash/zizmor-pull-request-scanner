@@ -70,12 +70,13 @@ export default (app, { runZizmor = defaultRunZizmor, configPath } = {}) => {
       const reportedAnnotations = filterAnnotationsToChangedLines(annotations, changedFileMap);
 
       const hasFindings = reportedAnnotations.length > 0;
-      const conclusion = hasFindings ? (process.env.AUDIT_ONLY === "true" ? "neutral" : "action_required") : "success";
-      const title = hasFindings ? `zizmor found ${reportedAnnotations.length} finding(s)` : "No findings";
-      const summary = redact(buildSummary(reportedAnnotations));
+      const {conclusion, summary, title} = buildSummary(reportedAnnotations);
+
+      const finalConclusion = process.env.AUDIT_ONLY === "true" ? "neutral" : conclusion;
+      const finalSummary = redact(summary);
       const includeAnnotations = process.env.ANNOTATE !== "false";
 
-      await updateCheckRun(context, checkRunId, includeAnnotations ? reportedAnnotations : [], title, summary, conclusion);
+      await updateCheckRun(context, checkRunId, includeAnnotations ? reportedAnnotations : [], title, finalSummary, finalConclusion);
     } catch (error) {
       app.log.error(error);
       await completeCheckRun(
